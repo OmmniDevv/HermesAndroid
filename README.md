@@ -22,6 +22,21 @@
   diganti 3.14 saat flash ulang. Semua file lain tidak diubah, kecuali
   `module.prop` (versi 1.0.1, versionCode 101, updateJson ke repo ini).
 
+## Perbaikan v1.0.2 (tambahan dari v1.0.1)
+
+- **Error baru setelah Python 3.14 berhasil:** pip gagal
+  `ResolutionImpossible` karena `hermes-agent` butuh `Pillow==13.0.0`
+  sedangkan `browser-harness==0.1.13` mematok `pillow==12.3.0`.
+- **Penyebab:** upstream menyelesaikan konflik ini lewat
+  `[tool.uv] override-dependencies` (`Pillow==13.0.0`), tapi pip
+  biasa tidak membaca override uv, jadi resolver pip mentok.
+- **Perbaikan (di `hermes/update.py`, bukan di kode Hermes):**
+  `browser-harness` dikeluarkan dari graf dependensi saat instalasi
+  editable, lalu diinstal terpisah dengan `--no-deps` beserta
+  `cdp-use` dan `fetch-use`-nya, dan metadata terinstalnya ditulis
+  ulang ke `Pillow==13.0.0` supaya `pip check` lolos — persis hasil
+  akhir yang dimaksud override upstream, tanpa mengubah kode Hermes.
+
 ---
 
 # HermesAndroid

@@ -144,10 +144,35 @@ def build_release(release, sha, ref):
             raise RuntimeError(f"Expected build output missing: {output}")
     # Official launcher supports this prebuilt location. Keep the source workspace too.
     shutil.copytree(source / "ui-tui/dist", source / "hermes_cli/tui_dist", dirs_exist_ok=True)
+    # pip does not understand uv override-dependencies. Upstream forces
+    # Pillow==13.0.0 over browser-harness 0.1.13's pillow==12.3.0 pin
+    # (see [tool.uv] override-dependencies in pyproject.toml). With plain
+    # pip that is ResolutionImpossible. So: drop browser-harness from the
+    # editable install's dependency graph, install it --no-deps afterwards,
+    # and rewrite its installed metadata to Pillow==13.0.0 so `pip check`
+    # passes exactly like uv's override does.
+    _proj = (source / "pyproject.toml").read_text(encoding="utf-8")
+    _proj = "\n".join(line for line in _proj.splitlines() if "browser-harness==" not in line) + "\n"
+    (source / "pyproject.toml").write_text(_proj, encoding="utf-8")
+    say("Patched pyproject.toml: browser-harness removed from pip graph (installed separately, Pillow 13 override)")
     say("Installing isolated Python dependencies...")
     run([H / "bin/python", "-m", "pip", "install", "--ignore-installed", "--no-cache-dir",
          "--progress-bar", "off", "--timeout", "120", "--retries", "5",
          "--target", release / "packages", "--editable", source, "pip"], env=env)
+    say("Installing browser-harness separately (no-deps, Pillow 13 override)...")
+    run([H / "bin/python", "-m", "pip", "install", "--ignore-installed", "--no-cache-dir",
+         "--progress-bar", "off", "--timeout", "120", "--retries", "5",
+         "--target", release / "packages", "--no-deps", "browser-harness==0.1.13"], env=env)
+    run([H / "bin/python", "-m", "pip", "install", "--ignore-installed", "--no-cache-dir",
+         "--progress-bar", "off", "--timeout", "120", "--retries", "5",
+         "--target", release / "packages", "cdp-use==1.4.5", "fetch-use==0.4.0"], env=env)
+    for dist_info in (release / "packages").glob("browser_harness-*.dist-info"):
+        meta = dist_info / "METADATA"
+        if meta.is_file():
+            _meta = meta.read_text(encoding="utf-8", errors="ignore")
+            _meta = _meta.replace("pillow==12.3.0", "Pillow==13.0.0")
+            meta.write_text(_meta, encoding="utf-8")
+            say(f"Patched {dist_info.name}/METADATA pillow pin to 13.0.0")
     for entry in (release / "packages/bin").glob("*"):
         if entry.is_file() and entry.read_bytes().startswith(b"#!"):
             contents = entry.read_bytes().split(b"\n", 1)
