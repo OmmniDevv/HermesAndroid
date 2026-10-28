@@ -178,8 +178,13 @@ def build_release(release, sha, ref):
             contents = entry.read_bytes().split(b"\n", 1)
             if b"python" in contents[0]:
                 entry.write_bytes(f"#!{release}/bin/python\n".encode() + contents[1])
+    # Upstream Hermes v0.22.5+ tidak lagi memakai PyYAML (modul `yaml`):
+    # pyproject-nya tidak mendeklarasikan PyYAML sama sekali, YAML
+    # ditangani lewat ruamel.yaml (hermes_yaml.py). Cek lama yang
+    # mengimpor `yaml` selalu gagal walau semua dependensi asli
+    # sudah terinstal, jadi cek diganti ke ruamel.yaml.
     say("Checking Python imports and built assets...")
-    run([release / "bin/python", "-c", "import hermes_cli, fastapi, openai, yaml; from hermes_cli import web_server"], cwd=release, env=env, timeout=120)
+    run([release / "bin/python", "-c", "import hermes_cli, fastapi, openai, ruamel.yaml; from hermes_cli import web_server"], cwd=release, env=env, timeout=120)
     run([release / "bin/python", "-m", "hermes_cli.main", "--version"], cwd=release, env=env, timeout=60)
     run([release / "bin/python", "-m", "pip", "check"], cwd=release, env=env, timeout=60)
     run([H / "node/bin/node", "--check", source / "hermes_cli/tui_dist/entry.js"], env=env, timeout=60)

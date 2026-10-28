@@ -22,6 +22,19 @@
   diganti 3.14 saat flash ulang. Semua file lain tidak diubah, kecuali
   `module.prop` (versi 1.0.1, versionCode 101, updateJson ke repo ini).
 
+## Perbaikan v1.0.3
+
+- Perbaikan cek import di update.py yang selalu gagal di akhir
+  build padahal semua dependensi sudah terinstal: cek lama
+  mengimpor modul `yaml` (PyYAML), tapi upstream Hermes
+  v0.22.5+ tidak lagi memakai PyYAML sama sekali (pyproject-nya
+  nol kemunculan PyYAML, YAML ditangani lewat ruamel.yaml di
+  hermes_yaml.py). Cek diganti jadi
+  `import hermes_cli, fastapi, openai, ruamel.yaml`, yang memang
+  sudah terinstal di log v1.0.2. Build yang gagal di langkah ini
+  tidak ditandai .ready, jadi flash berikutnya menghapus release
+  yang belum jadi itu dan membangun ulang dari awal secara bersih.
+
 ## Perbaikan v1.0.2 (tambahan dari v1.0.1)
 
 - **Error baru setelah Python 3.14 berhasil:** pip gagal
